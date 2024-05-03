@@ -1,15 +1,13 @@
-# fileupload
+#### 简介
 MyBatisjj-mysql 是一个优雅的 MyBatis 增强框架，它非常轻量、同时拥有极高的性能与灵活性。MyBatisjj-mysql 能够极大地提高我们的开发效率和开发体验，让我们有更多的时间专注于自己的事情。
-```
-
 
 #### 安装
 
 ```
 <dependency>
-	<groupId>cn.javaex</groupId>
-	<artifactId>mybatisjj-mysql</artifactId>
-	<version>1.0.0</version>
+    <groupId>cn.javaex</groupId>
+    <artifactId>mybatisjj-mysql</artifactId>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -25,3 +23,4 @@ MyBatisjj-mysql 是一个优雅的 MyBatis 增强框架，它非常轻量、同�
 
 #### QQ群
 587243028
+
