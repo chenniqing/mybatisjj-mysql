@@ -7,7 +7,7 @@ MyBatisjj-mysql 是一个优雅的 MyBatis 增强框架，它非常轻量、同�
 <dependency>
     <groupId>cn.javaex</groupId>
     <artifactId>mybatisjj-mysql</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.2</version>
 </dependency>
 ```
 
