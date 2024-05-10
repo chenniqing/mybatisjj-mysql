@@ -23,7 +23,7 @@ import org.apache.ibatis.reflection.SystemMetaObject;
 	@Signature(type = StatementHandler.class, method = "prepare", args = {Connection.class, Integer.class})
 })
 public class ModifiedSqlInterceptor implements Interceptor {
- 
+
 	private Optional<BeforeModifiedSqlInterceptor> beforeModifiedSqlInterceptor;
 	
 	public ModifiedSqlInterceptor(Optional<BeforeModifiedSqlInterceptor> beforeModifiedSqlInterceptor) {
@@ -43,16 +43,18 @@ public class ModifiedSqlInterceptor implements Interceptor {
 				String modifiedSql = beforeModifiedSqlInterceptor
 						.map(interceptor -> interceptor.modifiedSQL(originalSql))
 						.orElse(originalSql);
-		 
+				
 				// 更新SQL语句
-				metaObject.setValue("delegate.boundSql.sql", modifiedSql);
+				if (!originalSql.equals(modifiedSql)) {
+					metaObject.setValue("delegate.boundSql.sql", modifiedSql);
+				}
 			}
 		}
 
 		// 继续执行后面的拦截器链和原来的查询
 		return invocation.proceed();
 	}
- 
+
 	@Override
 	public Object plugin(Object target) {
 		return Plugin.wrap(target, this);
