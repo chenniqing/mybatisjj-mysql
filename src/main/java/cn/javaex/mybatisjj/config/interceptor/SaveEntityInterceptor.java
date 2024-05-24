@@ -5,7 +5,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.ibatis.executor.Executor;
@@ -20,6 +19,7 @@ import org.apache.ibatis.plugin.Signature;
 import cn.javaex.mybatisjj.basic.common.IdTypeConstant;
 import cn.javaex.mybatisjj.entity.TableIdEntity;
 import cn.javaex.mybatisjj.provider.EntityProvider;
+import cn.javaex.mybatisjj.util.StartupBannerUtils;
 
 /**
  * 插入/更新拦截器
@@ -30,11 +30,12 @@ import cn.javaex.mybatisjj.provider.EntityProvider;
 	@Signature(type = Executor.class, method = "update", args = { MappedStatement.class, Object.class })
 })
 public class SaveEntityInterceptor extends EntityProvider implements Interceptor {
-
-	private Optional<BeforeSaveEntityInterceptor> beforeSaveEntityInterceptor;
 	
-	public SaveEntityInterceptor(Optional<BeforeSaveEntityInterceptor> beforeSaveEntityInterceptor) {
+	private BeforeSaveEntityInterceptor beforeSaveEntityInterceptor;
+	
+	public SaveEntityInterceptor(BeforeSaveEntityInterceptor beforeSaveEntityInterceptor) {
 		this.beforeSaveEntityInterceptor = beforeSaveEntityInterceptor;
+		StartupBannerUtils.printBanner();
 	}
 
 	@Override
@@ -56,8 +57,8 @@ public class SaveEntityInterceptor extends EntityProvider implements Interceptor
 		// 插入前或更新前的逻辑
 		// insert
 		if (SqlCommandType.INSERT.equals(commandType)) {
-			if (beforeSaveEntityInterceptor.isPresent()) {
-				beforeSaveEntityInterceptor.ifPresent(interceptor -> interceptor.insertFill(parameter));
+			if (beforeSaveEntityInterceptor != null) {
+				beforeSaveEntityInterceptor.insertFill(parameter);
 			}
 			
 			// 主键生成策略
@@ -65,8 +66,8 @@ public class SaveEntityInterceptor extends EntityProvider implements Interceptor
 		}
 		// update
 		else if (SqlCommandType.UPDATE.equals(commandType)) {
-			if (beforeSaveEntityInterceptor.isPresent()) {
-				beforeSaveEntityInterceptor.ifPresent(interceptor -> interceptor.updateFill(parameter));
+			if (beforeSaveEntityInterceptor != null) {
+				beforeSaveEntityInterceptor.updateFill(parameter);
 			}
 		}
 

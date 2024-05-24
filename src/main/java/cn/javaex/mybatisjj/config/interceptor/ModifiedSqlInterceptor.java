@@ -1,7 +1,6 @@
 package cn.javaex.mybatisjj.config.interceptor;
 
 import java.sql.Connection;
-import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.ibatis.executor.statement.StatementHandler;
@@ -24,15 +23,15 @@ import org.apache.ibatis.reflection.SystemMetaObject;
 })
 public class ModifiedSqlInterceptor implements Interceptor {
 
-	private Optional<BeforeModifiedSqlInterceptor> beforeModifiedSqlInterceptor;
+	private BeforeModifiedSqlInterceptor beforeModifiedSqlInterceptor;
 	
-	public ModifiedSqlInterceptor(Optional<BeforeModifiedSqlInterceptor> beforeModifiedSqlInterceptor) {
+	public ModifiedSqlInterceptor(BeforeModifiedSqlInterceptor beforeModifiedSqlInterceptor) {
 		this.beforeModifiedSqlInterceptor = beforeModifiedSqlInterceptor;
 	}
 	
 	@Override
 	public Object intercept(Invocation invocation) throws Throwable {
-		if (beforeModifiedSqlInterceptor.isPresent()) {
+		if (beforeModifiedSqlInterceptor != null) {
 			if (invocation.getTarget() instanceof StatementHandler) {
 				StatementHandler statementHandler = (StatementHandler) invocation.getTarget();
 				MetaObject metaObject = SystemMetaObject.forObject(statementHandler);
@@ -40,9 +39,7 @@ public class ModifiedSqlInterceptor implements Interceptor {
 				// 原始SQL
 				String originalSql = boundSql.getSql();
 				// 修改后的SQL
-				String modifiedSql = beforeModifiedSqlInterceptor
-						.map(interceptor -> interceptor.modifiedSQL(originalSql))
-						.orElse(originalSql);
+				String modifiedSql = beforeModifiedSqlInterceptor.modifiedSQL(originalSql);
 				
 				// 更新SQL语句
 				if (!originalSql.equals(modifiedSql)) {

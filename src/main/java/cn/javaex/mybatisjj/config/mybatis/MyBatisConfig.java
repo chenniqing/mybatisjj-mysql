@@ -1,13 +1,11 @@
 package cn.javaex.mybatisjj.config.mybatis;
 
-import java.util.Optional;
-
 import org.apache.ibatis.plugin.Interceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import cn.javaex.mybatisjj.config.interceptor.BeforeSaveEntityInterceptor;
 import cn.javaex.mybatisjj.config.interceptor.BeforeModifiedSqlInterceptor;
+import cn.javaex.mybatisjj.config.interceptor.BeforeSaveEntityInterceptor;
 import cn.javaex.mybatisjj.config.interceptor.ModifiedSqlInterceptor;
 import cn.javaex.mybatisjj.config.interceptor.SaveEntityInterceptor;
 
@@ -15,12 +13,12 @@ import cn.javaex.mybatisjj.config.interceptor.SaveEntityInterceptor;
 public class MyBatisConfig {
 
 	@Bean
-	public Interceptor beforeModifiedSqlInterceptor(Optional<BeforeModifiedSqlInterceptor> beforeModifiedSqlInterceptor) {
+	public Interceptor beforeModifiedSqlInterceptor(BeforeModifiedSqlInterceptor beforeModifiedSqlInterceptor) {
 		return new ModifiedSqlInterceptor(beforeModifiedSqlInterceptor);
 	}
 	
 	@Bean
-	public Interceptor beforeSaveEntityInterceptor(Optional<BeforeSaveEntityInterceptor> beforeSaveEntityInterceptor) {
+	public Interceptor beforeSaveEntityInterceptor(BeforeSaveEntityInterceptor beforeSaveEntityInterceptor) {
 		return new SaveEntityInterceptor(beforeSaveEntityInterceptor);
 	}
 
