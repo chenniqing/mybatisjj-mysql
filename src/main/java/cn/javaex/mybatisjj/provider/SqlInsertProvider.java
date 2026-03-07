@@ -1,15 +1,17 @@
 package cn.javaex.mybatisjj.provider;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.builder.annotation.ProviderContext;
 import org.apache.ibatis.builder.annotation.ProviderMethodResolver;
 import org.apache.ibatis.jdbc.SQL;
 
-import cn.javaex.mybatisjj.entity.TableColumnEntity;
-import cn.javaex.mybatisjj.entity.TableEntity;
+import cn.javaex.mybatisjj.model.entity.TableColumnEntity;
+import cn.javaex.mybatisjj.model.entity.TableEntity;
+import cn.javaex.mybatisjj.util.ReflectiveUtils;
 
 /**
  * Insert构建
@@ -25,19 +27,31 @@ public class SqlInsertProvider extends EntityProvider implements ProviderMethodR
 	 * @return
 	 */
 	public String insert(ProviderContext providerContext, Object entity) {
-		Class<?> entityType = super.getEntityType(providerContext.getMapperType());
+		Class<?> clazz = super.getEntityType(providerContext.getMapperType());
 		
 		// 获取表实体信息
-		TableEntity tableEntity = super.getTableEntity(entityType);
+		TableEntity tableEntity = super.getTableEntity(clazz);
 		// 获取表的所有字段
 		List<TableColumnEntity> tableColumnEntityList = tableEntity.getTableColumnEntityList();
 		
 		return new SQL() {{
-			INSERT_INTO("`" + tableEntity.getTableName() + "`");
+			INSERT_INTO(tableEntity.getTableName());
 			for (TableColumnEntity tableColumnEntity : tableColumnEntityList) {
 				String column = tableColumnEntity.getColumn();
 				String field = tableColumnEntity.getField();
-				VALUES("`" + column + "`", "#{" + field + "}");
+				try {
+					// 使用反射从实体对象中获取字段值
+					Field entityField = ReflectiveUtils.findField(clazz, field);
+					entityField.setAccessible(true);
+					Object fieldValue = entityField.get(entity);
+					
+					// 如果字段值不为 null，则添加到插入语句
+					if (fieldValue != null) {
+						VALUES(column, "#{" + field + "}");
+					}
+				} catch (NoSuchFieldException | IllegalAccessException e) {
+					e.printStackTrace();
+				}
 			}
 		}}.toString();
 	}
@@ -59,40 +73,44 @@ public class SqlInsertProvider extends EntityProvider implements ProviderMethodR
 		TableEntity tableEntity = super.getTableEntity(clazz);
 		// 获取表的所有字段
 		List<TableColumnEntity> tableColumnEntityList = tableEntity.getTableColumnEntityList();
-		// 提取columns
-		List<String> columns = tableColumnEntityList.stream()
-				.map(TableColumnEntity::getColumn)
-				.collect(Collectors.toList());
-		 
-		// 提取fields
-		List<String> fields = tableColumnEntityList.stream()
-				.map(TableColumnEntity::getField)
-				.collect(Collectors.toList());
 		
-		// 构建SQL
-		SQL sql = new SQL().INSERT_INTO("`" + tableEntity.getTableName() + "`");
-		// 添加列名
-		String columnNames = columns.stream()
-				.map(column -> "`" + column + "`")
-				.collect(Collectors.joining(", "));
-		sql.INTO_COLUMNS(columnNames);
-		
-		// 构建插入SQL的值部分
-		StringBuffer valuesBuffer = new StringBuffer();
-		for (int i = 0; i < list.size(); i++) {
-			if (i > 0) {
-				valuesBuffer.append(",");
-			}
-			valuesBuffer.append("(");
-			final int index = i;
-			String valueTemplate = fields.stream()
-				.map(field -> "#{list[" + index + "]." + field + "}")
-				.collect(Collectors.joining(","));
-			valuesBuffer.append(valueTemplate);
-			valuesBuffer.append(")");
+		// 构造所有列名
+		List<String> columnNames = new ArrayList<>();
+		for (TableColumnEntity tableColumnEntity : tableColumnEntityList) {
+			columnNames.add(tableColumnEntity.getColumn());
 		}
 		
-		return sql.toString() + " VALUES " + valuesBuffer.toString();
+		StringBuilder sqlBuilder = new StringBuilder();
+		sqlBuilder.append("INSERT INTO ").append(tableEntity.getTableName()).append(" ");
+		sqlBuilder.append("(").append(String.join(", ", columnNames)).append(") VALUES ");
+		
+		// 构造每条记录的值
+		List<String> valueRows = new ArrayList<>();
+		for (int i = 0; i < list.size(); i++) {
+			Object entity = list.get(i);
+			List<String> valuePlaceholders = new ArrayList<>();
+			for (TableColumnEntity tableColumnEntity : tableColumnEntityList) {
+				String field = tableColumnEntity.getField();
+				try {
+					// 使用反射获取当前字段值
+					Field entityField = ReflectiveUtils.findField(clazz, field);
+					entityField.setAccessible(true);
+					Object fieldValue = entityField.get(entity);
+					if (fieldValue != null) {
+						valuePlaceholders.add("#{list[" + i + "]." + field + "}");
+					} else {
+						valuePlaceholders.add("null");
+					}
+				} catch (NoSuchFieldException | IllegalAccessException e) {
+					e.printStackTrace();
+					throw new RuntimeException("Error processing field: " + field, e);
+				}
+			}
+			valueRows.add("(" + String.join(", ", valuePlaceholders) + ")");
+		}
+		
+		sqlBuilder.append(String.join(", ", valueRows));
+		return sqlBuilder.toString();
 	}
-	
+
 }

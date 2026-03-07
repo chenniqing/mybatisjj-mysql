@@ -1,10 +1,9 @@
 package cn.javaex.mybatisjj.mapper;
 
-import java.io.Serializable;
-
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.UpdateProvider;
 
+import cn.javaex.mybatisjj.model.query.Wrapper;
 import cn.javaex.mybatisjj.provider.SqlUpdateProvider;
 
 /**
@@ -16,7 +15,7 @@ import cn.javaex.mybatisjj.provider.SqlUpdateProvider;
 public interface UpdateMapper<T> {
 
 	/**
-	 * 根据主键更新实体信息（为null的字段不更新）
+	 * 根据主键更新实体信息
 	 * @param entity
 	 * @return
 	 */
@@ -24,12 +23,29 @@ public interface UpdateMapper<T> {
 	int updateById(T entity);
 
 	/**
-	 * 根据主键，将指定字段的值更新为null值
-	 * @param column
-	 * @param id
+	 * 根据主键更新实体信息（未设置值的，更新为NULL）
+	 * @param entity
 	 * @return
 	 */
-	@UpdateProvider(type = SqlUpdateProvider.class, method = "updateNullColumnById")
-	int updateNullColumnById(@Param("column") String column, @Param("id") Serializable id);
+	@UpdateProvider(type = SqlUpdateProvider.class, method = "updateByIdWithNull")
+	int updateByIdWithNull(T entity);
+	
+	/**
+	 * 根据查询条件更新数据
+	 * @param entity
+	 * @param wrapper
+	 * @return
+	 */
+	@UpdateProvider(type = SqlUpdateProvider.class, method = "updateByCondition")
+	int updateByCondition(@Param("entity") T entity, @Param("wrapper") Wrapper<T> wrapper);
+	
+	/**
+	 * 根据查询条件更新数据（未设置值的，更新为NULL）
+	 * @param entity
+	 * @param wrapper
+	 * @return
+	 */
+	@UpdateProvider(type = SqlUpdateProvider.class, method = "updateByConditionWithNull")
+	int updateByConditionWithNull(@Param("entity") T entity, @Param("wrapper") Wrapper<T> wrapper);
 	
 }

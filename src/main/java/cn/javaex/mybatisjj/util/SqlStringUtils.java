@@ -1,5 +1,9 @@
 package cn.javaex.mybatisjj.util;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+
 /**
  * Mybatisjj专用字符串工具类
  * 
@@ -114,5 +118,37 @@ public class SqlStringUtils {
     public static boolean isNotEmpty(String str) {
         return !isEmpty(str);
     }
-    
+
+	/**
+	 * 获取表名或字段名
+	 * @param <A>
+	 * @param field
+	 * @param annotationType
+	 * @return
+	 */
+	public static <A extends Annotation> String getTableOrColumnName(Field field, Class<A> annotationType) {
+		A ann = field.getAnnotation(annotationType);
+		String configured = (ann == null) ? null : getAnnotationStringValue(ann, "value");
+		return isEmpty(configured) ? toUnderlineName(field.getName()) : configured;
+	}
+
+	/**
+	 * 获取注解的value的值
+	 * @param ann
+	 * @param methodName
+	 * @return
+	 */
+	private static String getAnnotationStringValue(Annotation ann, String methodName) {
+		try {
+			Method m = ann.annotationType().getMethod(methodName);
+			Object v = m.invoke(ann);
+			return (v == null) ? null : String.valueOf(v);
+		} catch (NoSuchMethodException e) {
+			// 没有 value() 就当没配置
+			return null;
+		} catch (Exception e) {
+			throw new RuntimeException(
+					"Read annotation @" + ann.annotationType().getName() + " method " + methodName + " failed", e);
+		}
+	}
 }

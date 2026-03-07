@@ -6,6 +6,7 @@ import java.util.Collection;
 import org.apache.ibatis.annotations.DeleteProvider;
 import org.apache.ibatis.annotations.Param;
 
+import cn.javaex.mybatisjj.model.query.Wrapper;
 import cn.javaex.mybatisjj.provider.SqlDeleteProvider;
 
 /**
@@ -31,14 +32,13 @@ public interface DeleteMapper<T> {
 	 */
 	@DeleteProvider(type = SqlDeleteProvider.class, method = "deleteByIds")
 	int deleteByIds(@Param("ids") Collection<? extends Serializable> ids);
-
+	
 	/**
-	 * 根据某个字段删除数据
-	 * @param column
-	 * @param columnValue
-	 * @return
+	 * 根据查询条件删除数据
+	 * @param wrapper Wrapper条件
+	 * @return 
 	 */
-	@DeleteProvider(type = SqlDeleteProvider.class, method = "deleteByColumn")
-	int deleteByColumn(@Param("column") String column, @Param("columnValue") Object columnValue);
+	@DeleteProvider(type = SqlDeleteProvider.class, method = "deleteByCondition")
+	int deleteByCondition(@Param("wrapper") Wrapper<T> wrapper);
 	
 }

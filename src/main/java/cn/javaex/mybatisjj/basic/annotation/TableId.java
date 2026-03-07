@@ -17,7 +17,7 @@ import cn.javaex.mybatisjj.basic.common.IdTypeConstant;
 public @interface TableId {
 	
 	/**
-	 * 为空时将xxxYyy转为xxx_yyy的格式
+	 * 默认值，为空时取属性名称
 	 */
 	String value() default "";
 	

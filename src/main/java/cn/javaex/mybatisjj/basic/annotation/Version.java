@@ -6,18 +6,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 排除表字段
- * 不写@TableColumn注解时，会把实体类中所有属性当做数据库字段，
- * 该@ExcludeTableColumn注解用于排除指定属性，使其不被当做数据库字段
+ * 乐观锁字段
  * 
  * @author 陈霓清
+ * @Date 2026年2月8日
  */
-@Target({ElementType.FIELD})
+@Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ExcludeTableColumn {
+public @interface Version {
 	
 	/**
-	 * 排除表字段
+	 * 默认值，为空时取属性名称
 	 */
 	String value() default "";
 	

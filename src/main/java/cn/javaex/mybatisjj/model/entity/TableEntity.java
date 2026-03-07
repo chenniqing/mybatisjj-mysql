@@ -1,4 +1,4 @@
-package cn.javaex.mybatisjj.entity;
+package cn.javaex.mybatisjj.model.entity;
 
 import java.util.List;
 

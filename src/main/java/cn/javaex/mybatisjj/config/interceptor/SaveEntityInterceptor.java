@@ -17,8 +17,9 @@ import org.apache.ibatis.plugin.Plugin;
 import org.apache.ibatis.plugin.Signature;
 
 import cn.javaex.mybatisjj.basic.common.IdTypeConstant;
-import cn.javaex.mybatisjj.entity.TableIdEntity;
+import cn.javaex.mybatisjj.model.entity.TableIdEntity;
 import cn.javaex.mybatisjj.provider.EntityProvider;
+import cn.javaex.mybatisjj.util.ReflectiveUtils;
 import cn.javaex.mybatisjj.util.StartupBannerUtils;
 
 /**
@@ -94,7 +95,7 @@ public class SaveEntityInterceptor extends EntityProvider implements Interceptor
 								Object generatedKey = rs.getObject(1);
 								
 								// 反射设置参数对象的ID属性
-								Field idField = clazz.getDeclaredField(tableIdEntity.getField());
+								Field idField = ReflectiveUtils.findField(clazz, tableIdEntity.getField());
 								idField.setAccessible(true);
 								
 								// 根据字段类型来进行适当的类型转换
@@ -136,4 +137,5 @@ public class SaveEntityInterceptor extends EntityProvider implements Interceptor
 	public void setProperties(Properties properties) {
 		// 如有需要，这里可以配置属性
 	}
+	
 }

@@ -6,17 +6,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 表字段（主键以外的列）
+ * 标记为不使用分页查询
  * 
  * @author 陈霓清
  */
-@Target({ElementType.FIELD})
+@Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface TableColumn {
-	
-	/**
-	 * 数据库字段
-	 */
-	String value() default "";
+public @interface NotEnablePaging {
 	
 }

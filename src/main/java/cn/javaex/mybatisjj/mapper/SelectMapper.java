@@ -1,12 +1,14 @@
 package cn.javaex.mybatisjj.mapper;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.SelectProvider;
 
+import cn.javaex.mybatisjj.model.query.Wrapper;
 import cn.javaex.mybatisjj.provider.SqlSelectProvider;
 
 /**
@@ -34,21 +36,63 @@ public interface SelectMapper<T> {
 	List<T> selectListByIds(@Param("ids") Collection<? extends Serializable> ids);
 
 	/**
-	 * 根据指定字段批量查询
-	 * @param column
-	 * @param columnValue
-	 * @return
+	 * 根据Wrapper条件查询列表
+	 * @param wrapper Wrapper条件
+	 * @return 实体列表
 	 */
-	@SelectProvider(type = SqlSelectProvider.class, method = "selectListByColumn")
-	List<T> selectListByColumn(@Param("column") String column, @Param("columnValue") Object columnValue);
-
+	@SelectProvider(type = SqlSelectProvider.class, method = "selectListByWrapper")
+	List<T> selectList(@Param("wrapper") Wrapper<T> wrapper);
+	
 	/**
-	 * 根据指定字段查询统计数量
-	 * @param column
-	 * @param columnValue
+	 * 根据Wrapper条件查询单个
+	 * @param wrapper Wrapper条件
+	 * @return 单个实体
+	 */
+	@SelectProvider(type = SqlSelectProvider.class, method = "selectOneByWrapper")
+	T selectOne(@Param("wrapper") Wrapper<T> wrapper);
+	
+	/**
+	 * 根据Wrapper条件查询总数
+	 * @param wrapper Wrapper条件
+	 * @return 符合条件的数量
+	 */
+	@SelectProvider(type = SqlSelectProvider.class, method = "selectCountByWrapper")
+	long selectCount(@Param("wrapper") Wrapper<T> wrapper);
+	
+	/**
+	 * 查询指定字段的最大值
+	 * @param fieldName
+	 * @param wrapper
 	 * @return
 	 */
-	@SelectProvider(type = SqlSelectProvider.class, method = "selectCountByColumn")
-	int selectCountByColumn(@Param("column") String column, @Param("columnValue") Object columnValue);
+	@SelectProvider(type = SqlSelectProvider.class, method = "selectMaxByWrapper")
+	BigDecimal selectMax(@Param("fieldName") String fieldName, @Param("wrapper") Wrapper<T> wrapper);
+	
+	/**
+	 * 查询指定字段的最小值
+	 * @param fieldName
+	 * @param wrapper
+	 * @return
+	 */
+	@SelectProvider(type = SqlSelectProvider.class, method = "selectMinByWrapper")
+	BigDecimal selectMin(@Param("fieldName") String fieldName, @Param("wrapper") Wrapper<T> wrapper);
+	
+	/**
+	 * 查询指定字段的平均值
+	 * @param fieldName
+	 * @param wrapper
+	 * @return
+	 */
+	@SelectProvider(type = SqlSelectProvider.class, method = "selectAvgByWrapper")
+	BigDecimal selectAvg(@Param("fieldName") String fieldName, @Param("wrapper") Wrapper<T> wrapper);
+	
+	/**
+	 * 查询指定字段的总和
+	 * @param fieldName
+	 * @param wrapper
+	 * @return
+	 */
+	@SelectProvider(type = SqlSelectProvider.class, method = "selectSumByWrapper")
+	BigDecimal selectSum(@Param("fieldName") String fieldName, @Param("wrapper") Wrapper<T> wrapper);
 	
 }

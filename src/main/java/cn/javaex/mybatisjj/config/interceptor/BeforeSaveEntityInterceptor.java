@@ -6,6 +6,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
+import cn.javaex.mybatisjj.util.ReflectiveUtils;
 import cn.javaex.mybatisjj.util.SqlStringUtils;
 
 /**
@@ -50,16 +51,16 @@ public interface BeforeSaveEntityInterceptor {
 		Class<?> clazz = entity.getClass();
 		
 		try {
-			// 1. 判断该属性是否存在
-			Field field = clazz.getDeclaredField(fieldName);
+			// 1.判断该属性是否存在
+			Field field = ReflectiveUtils.findField(clazz, fieldName);
 			
-			// 2. 判断该属性是否已经有值了，有值的情况下，不再赋值
+			// 2.判断该属性是否已经有值了，有值的情况下，不再赋值
 			Method method = clazz.getMethod("get" + SqlStringUtils.capitalize(fieldName));
 			if ((method == null) || (method.invoke(entity) != null)) {
 				return;
 			}
 			
-			// 3. 赋值
+			// 3.赋值
 			field.setAccessible(true);
 			field.set(entity, parameter);
 			field.setAccessible(false);
@@ -98,10 +99,10 @@ public interface BeforeSaveEntityInterceptor {
 		Class<?> clazz = entity.getClass();
 		
 		try {
-			// 1. 判断该属性是否存在
-			Field field = clazz.getDeclaredField(fieldName);
+			// 1.判断该属性是否存在
+			Field field = ReflectiveUtils.findField(clazz, fieldName);
 			
-			// 2. 赋值
+			// 2.赋值
  			field.setAccessible(true);
  			field.set(entity, parameter);
  			field.setAccessible(false);

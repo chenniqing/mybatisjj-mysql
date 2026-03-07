@@ -1,4 +1,4 @@
-package cn.javaex.mybatisjj.entity;
+package cn.javaex.mybatisjj.model.entity;
 
 /**
  * 表字段实体

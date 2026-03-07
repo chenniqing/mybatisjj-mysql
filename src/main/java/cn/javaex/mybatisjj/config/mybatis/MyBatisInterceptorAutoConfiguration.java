@@ -6,24 +6,29 @@ import org.springframework.context.annotation.Configuration;
 
 import cn.javaex.mybatisjj.config.interceptor.BeforeModifiedSqlInterceptor;
 import cn.javaex.mybatisjj.config.interceptor.BeforeSaveEntityInterceptor;
+import cn.javaex.mybatisjj.config.interceptor.DefaultBeforeModifiedSqlInterceptor;
+import cn.javaex.mybatisjj.config.interceptor.DefaultBeforeSaveEntityInterceptor;
 import cn.javaex.mybatisjj.config.interceptor.ModifiedSqlInterceptor;
 import cn.javaex.mybatisjj.config.interceptor.SaveEntityInterceptor;
 
 @Configuration
 public class MyBatisInterceptorAutoConfiguration {
-	
-	@Autowired
-	private BeforeModifiedSqlInterceptor beforeModifiedSqlInterceptor;
-	@Autowired
-	private BeforeSaveEntityInterceptor beforeSaveEntityInterceptor;
 
 	@Bean
-	public ModifiedSqlInterceptor modifiedSqlInterceptor() {
+	public ModifiedSqlInterceptor modifiedSqlInterceptor(
+			@Autowired(required = false) BeforeModifiedSqlInterceptor beforeModifiedSqlInterceptor) {
+		if (beforeModifiedSqlInterceptor == null) {
+			beforeModifiedSqlInterceptor = new DefaultBeforeModifiedSqlInterceptor();
+		}
 		return new ModifiedSqlInterceptor(beforeModifiedSqlInterceptor);
 	}
 	
 	@Bean
-	public SaveEntityInterceptor saveEntityInterceptor() {
+	public SaveEntityInterceptor saveEntityInterceptor(
+			@Autowired(required = false) BeforeSaveEntityInterceptor beforeSaveEntityInterceptor) {
+		if (beforeSaveEntityInterceptor == null) {
+			beforeSaveEntityInterceptor = new DefaultBeforeSaveEntityInterceptor();
+		}
 		return new SaveEntityInterceptor(beforeSaveEntityInterceptor);
 	}
 	
