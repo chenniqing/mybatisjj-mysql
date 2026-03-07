@@ -62,7 +62,7 @@ public class SqlInsertProvider extends EntityProvider implements ProviderMethodR
 	 * @param list
 	 * @return
 	 */
-	public String batchInsert(ProviderContext providerContext, @Param("list") List<?> list) {
+	public String insertBatch(ProviderContext providerContext, @Param("list") List<?> list) {
 		// 不能进行空或空列表的插入操作
 		if (list == null || list.isEmpty()) {
 			throw new IllegalArgumentException("Parameter 'list' must not be empty.");

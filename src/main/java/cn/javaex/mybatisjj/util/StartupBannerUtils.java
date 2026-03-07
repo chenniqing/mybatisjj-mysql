@@ -8,7 +8,7 @@ public class StartupBannerUtils {
             " | |\\/| | | | |  _ \\ / _` | __| / __|| || |\n" +
             " | |  | | |_| | |_) | (_| | |_| \\__ \\| || |\n" +
             " |_|  |_|\\__, |____/ \\__,_|\\__|_|___// |/ |\n" +
-            "         |___/                      |_/__/  (v4.0.0)\n";
+            "         |___/                      |_/__/  (v4.1.1)\n";
 	
 	public static void printBanner() {
 		System.out.println(BANNER);

@@ -8,6 +8,7 @@ import java.util.Map;
 
 import cn.javaex.mybatisjj.util.ReflectiveUtils;
 import cn.javaex.mybatisjj.util.SqlStringUtils;
+import cn.javaex.mybatisjj.util.UpdateEntity;
 
 /**
  * insert和update执行前的拦截器接口
@@ -35,6 +36,10 @@ public interface BeforeSaveEntityInterceptor {
 	 * @param parameter
 	 */
 	default void fieldFillWhenNull(Object entity, String fieldName, Object parameter) {
+		if (parameter == null) {
+			return;
+		}
+		
 		if (entity instanceof Map) {
 			Object value = ((Map<?, ?>) entity).get("list");
 			List<?> list = (List<?>) value;
@@ -42,9 +47,17 @@ public interface BeforeSaveEntityInterceptor {
 			for (Object object : list) {
 				this.setFieldValueWhenNull(object, fieldName, parameter);
 			}
-		} else if (parameter != null) {
-			this.setFieldValueWhenNull(entity, fieldName, parameter);
+			
+			return;
 		}
+		
+		// Updatable 场景要把自动填充字段也记为 modified
+		if (entity instanceof UpdateEntity.Updatable) {
+			UpdateEntity.Updatable updatable = (UpdateEntity.Updatable) entity;
+			updatable.markModified(fieldName, parameter);
+		}
+		
+		this.setFieldValueWhenNull(entity, fieldName, parameter);
 	}
 	
 	default void setFieldValueWhenNull(Object entity, String fieldName, Object parameter) {
@@ -78,9 +91,12 @@ public interface BeforeSaveEntityInterceptor {
 	 * @param parameter
 	 */
 	default void fieldFill(Object entity, String fieldName, Object parameter) {
+		if (parameter == null) {
+			return;
+		}
+		
 		if (entity instanceof Map) {
 			if (((Map<?, ?>) entity).containsKey("list") == false) {
-				// 说明执行的是 updateNullColumnById 方法，直接返回
 				return;
 			}
 			
@@ -90,9 +106,17 @@ public interface BeforeSaveEntityInterceptor {
 			for (Object object : list) {
 				this.setFieldValue(object, fieldName, parameter);
 			}
-		} else if (parameter != null) {
-			this.setFieldValue(entity, fieldName, parameter);
+			
+			return;
 		}
+		
+		// Updatable 场景要把自动填充字段也记为 modified
+		if (entity instanceof UpdateEntity.Updatable) {
+			UpdateEntity.Updatable updatable = (UpdateEntity.Updatable) entity;
+			updatable.markModified(fieldName, parameter);
+		}
+		
+		this.setFieldValue(entity, fieldName, parameter);
 	}
 	
 	default void setFieldValue(Object entity, String fieldName, Object parameter) {

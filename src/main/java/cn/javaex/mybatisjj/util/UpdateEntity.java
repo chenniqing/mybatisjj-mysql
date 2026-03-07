@@ -35,13 +35,21 @@ public class UpdateEntity {
 			@Override
 			public Object invoke(Object self, Method thisMethod, Method proceed, Object[] args) throws Throwable {
 				String name = thisMethod.getName();
+				
 				if (name.startsWith("set") && args != null && args.length == 1) {
 					String field = name.substring(3, 4).toLowerCase() + name.substring(4);
 					dirtyFields.put(field, args[0]);
 				}
+				
 				if (name.equals("getModifiedFields") && (args == null || args.length == 0)) {
 					return dirtyFields;
 				}
+				
+				if (name.equals("markModified") && args != null && args.length == 2) {
+					dirtyFields.put((String) args[0], args[1]);
+					return null;
+				}
+				
 				return proceed != null ? proceed.invoke(self, args) : null;
 			}
 		};
@@ -58,5 +66,7 @@ public class UpdateEntity {
 	// 静态内部接口
 	public interface Updatable {
 		Map<String, Object> getModifiedFields();
+		// 用于框架自动填充时也算“被修改”
+		void markModified(String fieldName, Object value);
 	}
 }
