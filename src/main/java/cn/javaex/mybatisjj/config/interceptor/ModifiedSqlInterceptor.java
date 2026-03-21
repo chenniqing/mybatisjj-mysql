@@ -16,6 +16,7 @@ import org.apache.ibatis.executor.statement.StatementHandler;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ParameterMapping;
+import org.apache.ibatis.mapping.SqlCommandType;
 import org.apache.ibatis.plugin.Interceptor;
 import org.apache.ibatis.plugin.Intercepts;
 import org.apache.ibatis.plugin.Invocation;
@@ -34,20 +35,19 @@ import cn.javaex.mybatisjj.util.MethodCacheUtils;
  * @author 陈霓清
  */
 @Intercepts({
-	@Signature(type = StatementHandler.class, method = "prepare", args = {Connection.class, Integer.class})
-})
+		@Signature(type = StatementHandler.class, method = "prepare", args = { Connection.class, Integer.class }) })
 public class ModifiedSqlInterceptor implements Interceptor {
 
 	/** 禁止使用分页的方法 */
-	private String[] NOT_ENABLE_PAGINGS = {"selectById", "selectListByIds"};
+	private String[] NOT_ENABLE_PAGINGS = { "selectById", "selectListByIds" };
 	private static final Pattern LIMIT_PATTERN = Pattern.compile("\\s+limit\\s+\\?", Pattern.CASE_INSENSITIVE);
-	
+
 	private BeforeModifiedSqlInterceptor beforeModifiedSqlInterceptor;
-	
+
 	public ModifiedSqlInterceptor(BeforeModifiedSqlInterceptor beforeModifiedSqlInterceptor) {
 		this.beforeModifiedSqlInterceptor = beforeModifiedSqlInterceptor;
 	}
-	
+
 	@Override
 	public Object intercept(Invocation invocation) throws Throwable {
 		if ((invocation.getTarget() instanceof StatementHandler) == false) {
@@ -64,14 +64,21 @@ public class ModifiedSqlInterceptor implements Interceptor {
 		// 原始SQL
 		String originalSql = boundSql.getSql();
 		// 修改后的SQL
-		String modifiedSql = beforeModifiedSqlInterceptor.modifiedSQL(originalSql);
+		String modifiedSql = originalSql;
+		if (beforeModifiedSqlInterceptor != null) {
+			String tempSql = beforeModifiedSqlInterceptor.modifiedSQL(originalSql);
+			if (tempSql != null && tempSql.trim().isEmpty() == false) {
+				modifiedSql = tempSql;
+			}
+		}
 		
 		// 如果方法上有@NotEnablePaging注解，则不进行分页处理
 		// 获取接口类和方法名
 		String mapperInterface = ms.getId().substring(0, ms.getId().lastIndexOf("."));
 		String mapperMethod = ms.getId().substring(ms.getId().lastIndexOf(".") + 1);
 		Boolean hasNotEnablePagingAnnotation = MethodCacheUtils.hasNotEnablePagingAnnotation(mapperInterface, mapperMethod);
-		if (Arrays.stream(NOT_ENABLE_PAGINGS).anyMatch(mapperMethod::equals) || hasNotEnablePagingAnnotation) {
+		if (Arrays.stream(NOT_ENABLE_PAGINGS).anyMatch(mapperMethod::equals)
+				|| Boolean.TRUE.equals(hasNotEnablePagingAnnotation)) {
 			if (!originalSql.equals(modifiedSql)) {
 				metaObject.setValue("delegate.boundSql.sql", modifiedSql);
 			}
@@ -79,7 +86,7 @@ public class ModifiedSqlInterceptor implements Interceptor {
 		}
 		
 		PageHelper.Page page = PageHelper.getPage();
-		if (Objects.nonNull(page) && !isCountQuery(modifiedSql) && page.getTotal()==null) {
+		if (Objects.nonNull(page) && ms.getSqlCommandType() == SqlCommandType.SELECT && !isCountQuery(modifiedSql) && page.getTotal() == null) {
 			// 执行计数查询
 			String countSql = "SELECT COUNT(1) FROM (" + modifiedSql + ") AS temp";
 			Connection connection = (Connection) invocation.getArgs()[0];
@@ -87,7 +94,7 @@ public class ModifiedSqlInterceptor implements Interceptor {
 			ResultSet rs = null;
 			try {
 				countStmt = connection.prepareStatement(countSql);
-				// 清除原始 SQL 参数
+				// 设置原始 SQL 参数
 				ParameterHandler parameterHandler = new DefaultParameterHandler(ms, boundSql.getParameterObject(), boundSql);
 				parameterHandler.setParameters(countStmt);
 				rs = countStmt.executeQuery();
@@ -112,14 +119,18 @@ public class ModifiedSqlInterceptor implements Interceptor {
 				metaObject.setValue("delegate.boundSql.sql", modifiedSql);
 				
 				// 获取现有参数，并添加分页参数
-				List<ParameterMapping> parameterMappings = new ArrayList<>(boundSql.getParameterMappings());
-				parameterMappings.add(new ParameterMapping.Builder(ms.getConfiguration(), "offset", Integer.class).build());
-				parameterMappings.add(new ParameterMapping.Builder(ms.getConfiguration(), "limit", Integer.class).build());
+				List<ParameterMapping> parameterMappings = new ArrayList<ParameterMapping>(
+						boundSql.getParameterMappings());
+				parameterMappings
+						.add(new ParameterMapping.Builder(ms.getConfiguration(), "offset", Integer.class).build());
+				parameterMappings
+						.add(new ParameterMapping.Builder(ms.getConfiguration(), "limit", Integer.class).build());
 				metaObject.setValue("delegate.boundSql.parameterMappings", parameterMappings);
 				
 				// 添加分页参数到BoundSql中的参数表中
 				@SuppressWarnings("unchecked")
-				Map<String, Object> additionalParameters = (Map<String, Object>) metaObject.getValue("delegate.boundSql.additionalParameters");
+				Map<String, Object> additionalParameters = (Map<String, Object>) metaObject
+						.getValue("delegate.boundSql.additionalParameters");
 				additionalParameters.put("offset", (page.getPageNum() - 1) * page.getPageSize());
 				additionalParameters.put("limit", page.getPageSize());
 			} else {
@@ -136,17 +147,22 @@ public class ModifiedSqlInterceptor implements Interceptor {
 		
 		return invocation.proceed();
 	}
-
+	
 	// 判断是否是Count查询
 	private boolean isCountQuery(String sql) {
-		return sql.trim().toLowerCase().startsWith("select count(");
+		if (sql == null) {
+			return false;
+		}
+		
+		String normalizedSql = sql.trim().toLowerCase();
+		return normalizedSql.startsWith("select count(");
 	}
 	
 	@Override
 	public Object plugin(Object target) {
 		return Plugin.wrap(target, this);
 	}
-
+	
 	@Override
 	public void setProperties(Properties properties) {
 		// 可用于传递配置的属性，如果有的话

@@ -27,13 +27,30 @@ public class PageInfo<T> {
 
 	public PageInfo(List<T> list) {
 		this.list = list;
-
+		
 		PageHelper.Page page = PageHelper.getPage();
-		this.total = page.getTotal();
+		if (page == null) {
+			this.total = list == null ? 0 : list.size();
+			this.pageNum = 1;
+			this.pageSize = list == null ? 0 : list.size();
+			this.size = list == null ? 0 : list.size();
+			this.startRow = this.size > 0 ? 1 : 0;
+			this.endRow = this.size;
+			this.pages = this.pageSize > 0 ? 1 : 0;
+			this.prePage = 0;
+			this.nextPage = 0;
+			this.isFirstPage = true;
+			this.isLastPage = true;
+			this.hasPreviousPage = false;
+			this.hasNextPage = false;
+			return;
+		}
+		
+		this.total = page.getTotal() == null ? 0L : page.getTotal();
 		this.pageNum = page.getPageNum();
 		this.pageSize = page.getPageSize();
-		this.size = list.size();
-
+		this.size = list == null ? 0 : list.size();
+		
 		// 由于结果是>startRow的，所以实际的需要 + 1
 		if (this.size == 0) {
 			this.startRow = 0;
@@ -43,14 +60,14 @@ public class PageInfo<T> {
 			// 计算实际的endRow（最后一页的时候特殊）
 			this.endRow = this.startRow - 1 + this.size;
 		}
-
+		
 		// 计算总页数
 		if (this.pageSize > 0) {
 			this.pages = (int) (this.total / this.pageSize + ((this.total % this.pageSize == 0) ? 0 : 1));
 		} else {
 			this.pages = 0;
 		}
-
+		
 		// 计算前一页和后一页
 		if (this.pageNum > 1) {
 			this.prePage = this.pageNum - 1;
@@ -58,13 +75,13 @@ public class PageInfo<T> {
 		if (this.pageNum < this.pages) {
 			this.nextPage = this.pageNum + 1;
 		}
-
+		
 		// 判断页面边界
 		this.isFirstPage = this.pageNum == 1;
 		this.isLastPage = this.pageNum == this.pages || this.pages == 0;
 		this.hasPreviousPage = this.pageNum > 1;
 		this.hasNextPage = this.pageNum < this.pages;
-
+		
 		// 清除分页参数以防影响后续操作
 		PageHelper.clearPage();
 	}
