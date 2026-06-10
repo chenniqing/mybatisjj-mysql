@@ -6,19 +6,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 排除表字段
- * 实体类中所有属性默认都会被当做数据库字段，
- * 该@ExcludeTableColumn注解用于排除指定属性，使其不被当做数据库字段
+ * 指定当前Mapper、Mapper方法或实体类使用的数据源
  * 
  * @author 陈霓清
  */
-@Target({ElementType.FIELD})
+@Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ExcludeTableColumn {
+public @interface DS {
 	
 	/**
-	 * 排除表字段
+	 * 数据源名称，对应DynamicDataSource中注册的数据源key
 	 */
-	String value() default "";
+	String value();
 	
 }

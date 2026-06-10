@@ -41,10 +41,26 @@ public interface BeforeSaveEntityInterceptor {
 		}
 		
 		if (entity instanceof Map) {
+			Map<?, ?> map = (Map<?, ?>) entity;
+			if (map.get("list") instanceof List == false) {
+				// updateByCondition 这类多参数方法会把实体放在 ParamMap 的 entity key 中
+				Object targetEntity = map.get("entity");
+				if (targetEntity != null) {
+					this.markModifiedIfNecessary(targetEntity, fieldName, parameter);
+					this.setFieldValueWhenNull(targetEntity, fieldName, parameter);
+				}
+				return;
+			}
+			
 			Object value = ((Map<?, ?>) entity).get("list");
 			List<?> list = (List<?>) value;
 			
 			for (Object object : list) {
+				// Updatable 场景要把自动填充字段也记为 modified
+				if (object instanceof UpdateEntity.Updatable) {
+					UpdateEntity.Updatable updatable = (UpdateEntity.Updatable) object;
+					updatable.markModified(fieldName, parameter);
+				}
 				this.setFieldValueWhenNull(object, fieldName, parameter);
 			}
 			
@@ -58,6 +74,19 @@ public interface BeforeSaveEntityInterceptor {
 		}
 		
 		this.setFieldValueWhenNull(entity, fieldName, parameter);
+	}
+	
+	/**
+	 * Updatable 场景要把自动填充字段也记录为 modified，否则 SQL 生成阶段会把该字段跳过
+	 * @param entity 实体对象
+	 * @param fieldName 字段名
+	 * @param parameter 填充值
+	 */
+	default void markModifiedIfNecessary(Object entity, String fieldName, Object parameter) {
+		if (entity instanceof UpdateEntity.Updatable) {
+			UpdateEntity.Updatable updatable = (UpdateEntity.Updatable) entity;
+			updatable.markModified(fieldName, parameter);
+		}
 	}
 	
 	default void setFieldValueWhenNull(Object entity, String fieldName, Object parameter) {
@@ -97,6 +126,12 @@ public interface BeforeSaveEntityInterceptor {
 		
 		if (entity instanceof Map) {
 			if (((Map<?, ?>) entity).containsKey("list") == false) {
+				// updateByCondition 这类多参数方法会把实体放在 ParamMap 的 entity key 中
+				Object targetEntity = ((Map<?, ?>) entity).get("entity");
+				if (targetEntity != null) {
+					this.markModifiedIfNecessary(targetEntity, fieldName, parameter);
+					this.setFieldValue(targetEntity, fieldName, parameter);
+				}
 				return;
 			}
 			
@@ -104,6 +139,11 @@ public interface BeforeSaveEntityInterceptor {
 			List<?> list = (List<?>) value;
 			
 			for (Object object : list) {
+				// Updatable 场景要把自动填充字段也记为 modified
+				if (object instanceof UpdateEntity.Updatable) {
+					UpdateEntity.Updatable updatable = (UpdateEntity.Updatable) object;
+					updatable.markModified(fieldName, parameter);
+				}
 				this.setFieldValue(object, fieldName, parameter);
 			}
 			

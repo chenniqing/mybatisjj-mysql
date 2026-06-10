@@ -2,6 +2,7 @@ package cn.javaex.mybatisjj.provider;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -91,6 +92,50 @@ public class SqlUpdateProvider extends EntityProvider implements ProviderMethodR
 	}
 	
 	/**
+	 * 根据主键批量更新实体信息
+	 * @param providerContext
+	 * @param list
+	 * @return
+	 */
+	public String updateBatch(ProviderContext providerContext, @Param("list") List<?> list) {
+		if (list == null || list.isEmpty()) {
+			throw new IllegalArgumentException("Parameter 'list' must not be empty.");
+		}
+		
+		EntityMeta meta = super.extractEntityMeta(providerContext);
+		Class<?> entityType = super.getEntityType(providerContext.getMapperType());
+		TableEntity tableEntity = super.getTableEntity(entityType);
+		TableIdEntity tableIdEntity = tableEntity.getTableIdEntity();
+		if (tableIdEntity == null) {
+			throw new RuntimeException("No field marked with @TableId or field named 'id' found.");
+		}
+		
+		return this.buildBatchUpdateSql(meta, tableIdEntity, list, tableEntity, false);
+	}
+	
+	/**
+	 * 根据主键批量更新实体信息（未设置值的，更新为NULL）
+	 * @param providerContext
+	 * @param list
+	 * @return
+	 */
+	public String updateBatchWithNull(ProviderContext providerContext, @Param("list") List<?> list) {
+		if (list == null || list.isEmpty()) {
+			throw new IllegalArgumentException("Parameter 'list' must not be empty.");
+		}
+		
+		EntityMeta meta = super.extractEntityMeta(providerContext);
+		Class<?> entityType = super.getEntityType(providerContext.getMapperType());
+		TableEntity tableEntity = super.getTableEntity(entityType);
+		TableIdEntity tableIdEntity = tableEntity.getTableIdEntity();
+		if (tableIdEntity == null) {
+			throw new RuntimeException("No field marked with @TableId or field named 'id' found.");
+		}
+		
+		return this.buildBatchUpdateSql(meta, tableIdEntity, list, tableEntity, true);
+	}
+	
+	/**
 	 * 根据查询条件更新数据
 	 * @param providerContext
 	 * @param entity
@@ -168,6 +213,170 @@ public class SqlUpdateProvider extends EntityProvider implements ProviderMethodR
 	 */
 	private String buildWhereClause(Class<?> entityType, Wrapper<?> wrapper) {
 		return wrapper != null && wrapper.getWhereClause() != null ? wrapper.getWhereClause().trim() : "";
+	}
+	
+	/**
+	 * 构建批量 update SQL
+	 * @param meta
+	 * @param tableIdEntity
+	 * @param list
+	 * @param tableEntity
+	 * @return
+	 */
+	private String buildBatchUpdateSql(EntityMeta meta, TableIdEntity tableIdEntity, List<?> list, TableEntity tableEntity, boolean updateNull) {
+		List<TableColumnEntity> tableColumnEntityList = tableEntity.getTableColumnEntityList();
+		Field versionField = meta.versionOpt.orElse(null);
+		String versionColumnName = versionField == null ? null : SqlStringUtils.getTableOrColumnName(versionField, Version.class);
+		StringBuilder setSql = new StringBuilder();
+		
+		for (TableColumnEntity columnEntity : tableColumnEntityList) {
+			String fieldName = columnEntity.getField();
+			String columnName = columnEntity.getColumn();
+			if (columnName.equals(tableIdEntity.getColumn())) continue;
+			if (versionColumnName != null && columnName.equals(versionColumnName)) continue;
+			
+			List<BatchUpdateItem> updateItemList = this.getBatchUpdateItemList(list, fieldName, updateNull);
+			if (updateItemList.isEmpty()) {
+				continue;
+			}
+			
+			setSql.append(columnName).append(" = CASE ").append(tableIdEntity.getColumn()).append(" ");
+			for (BatchUpdateItem updateItem : updateItemList) {
+				setSql.append("WHEN #{list[").append(updateItem.getIndex()).append("].").append(tableIdEntity.getField()).append("} THEN ");
+				if (updateItem.isNullSetter()) {
+					setSql.append("NULL ");
+				} else {
+					setSql.append("#{list[").append(updateItem.getIndex()).append("].").append(fieldName).append("} ");
+				}
+			}
+			setSql.append("ELSE ").append(columnName).append(" END, ");
+		}
+		
+		List<Integer> versionIndexList = this.getVersionIndexList(list, versionField);
+		if (versionColumnName != null && versionIndexList.isEmpty() == false) {
+			setSql.append(versionColumnName).append(" = CASE ").append(tableIdEntity.getColumn()).append(" ");
+			for (Integer index : versionIndexList) {
+				setSql.append("WHEN #{list[").append(index).append("].").append(tableIdEntity.getField()).append("} THEN ")
+						.append(versionColumnName).append(" + 1 ");
+			}
+			setSql.append("ELSE ").append(versionColumnName).append(" END, ");
+		}
+		
+		int lastIndex = setSql.lastIndexOf(",");
+		if (lastIndex != -1) {
+			setSql.delete(lastIndex, lastIndex + 2);
+		}
+		if (setSql.length() == 0) {
+			throw new RuntimeException("No field to update.");
+		}
+		
+		String whereSql = this.buildBatchWhereSql(meta, tableIdEntity, list, versionField, versionColumnName, versionIndexList);
+		return "UPDATE " + meta.tableName + " SET " + setSql + " WHERE " + whereSql;
+	}
+	
+	/**
+	 * 获取指定字段需要更新的行
+	 * @param list
+	 * @param fieldName
+	 * @return
+	 */
+	private List<BatchUpdateItem> getBatchUpdateItemList(List<?> list, String fieldName, boolean updateNull) {
+		List<BatchUpdateItem> updateItemList = new ArrayList<BatchUpdateItem>();
+		for (int i = 0; i < list.size(); i++) {
+			Object entity = list.get(i);
+			Object value = this.getFieldValue(entity, fieldName);
+			if (this.shouldUpdateField(entity, fieldName, value, updateNull)) {
+				updateItemList.add(new BatchUpdateItem(i, value == null));
+			}
+		}
+		return updateItemList;
+	}
+	
+	/**
+	 * 获取启用乐观锁的行下标
+	 * @param list
+	 * @param versionField
+	 * @return
+	 */
+	private List<Integer> getVersionIndexList(List<?> list, Field versionField) {
+		List<Integer> versionIndexList = new ArrayList<Integer>();
+		if (versionField == null) {
+			return versionIndexList;
+		}
+		
+		for (int i = 0; i < list.size(); i++) {
+			Object versionValue = this.getFieldValue(list.get(i), versionField.getName());
+			if (versionValue != null && (!(versionValue instanceof CharSequence) || ((CharSequence) versionValue).length() > 0)) {
+				versionIndexList.add(i);
+			}
+		}
+		return versionIndexList;
+	}
+	
+	/**
+	 * 构建批量更新的WHERE条件
+	 * @param meta
+	 * @param tableIdEntity
+	 * @param list
+	 * @param versionField
+	 * @param versionColumnName
+	 * @param versionIndexList
+	 * @return
+	 */
+	private String buildBatchWhereSql(EntityMeta meta, TableIdEntity tableIdEntity, List<?> list, Field versionField,
+			String versionColumnName, List<Integer> versionIndexList) {
+		StringBuilder whereSql = new StringBuilder();
+		for (int i = 0; i < list.size(); i++) {
+			if (i > 0) {
+				whereSql.append(" OR ");
+			}
+			whereSql.append("(").append(tableIdEntity.getColumn()).append(" = #{list[").append(i).append("].")
+					.append(tableIdEntity.getField()).append("}");
+			if (versionField != null && versionColumnName != null && versionIndexList.contains(i)) {
+				whereSql.append(" AND ").append(versionColumnName).append(" = #{list[").append(i).append("].")
+						.append(versionField.getName()).append("}");
+			}
+			whereSql.append(")");
+		}
+		
+		StringBuilder commonWhereSql = new StringBuilder();
+		if (meta.logicDeleteFieldOpt.isPresent()) {
+			commonWhereSql.append(" AND ").append(super.getLogicDeleteCondition(meta.logicDeleteFieldOpt.get()));
+		}
+		if (meta.tenantFieldOpt.isPresent()) {
+			commonWhereSql.append(" AND ").append(super.getTenantCondition(meta.tenantFieldOpt.get()));
+		}
+		return "(" + whereSql + ")" + commonWhereSql;
+	}
+	
+	/**
+	 * 判断字段是否需要更新
+	 * @param entity
+	 * @param fieldName
+	 * @param value
+	 * @return
+	 */
+	private boolean shouldUpdateField(Object entity, String fieldName, Object value, boolean updateNull) {
+		if (entity instanceof UpdateEntity.Updatable) {
+			Set<String> modifiedFieldNames = ((UpdateEntity.Updatable) entity).getModifiedFields().keySet();
+			return modifiedFieldNames.contains(fieldName);
+		}
+		return updateNull || value != null;
+	}
+	
+	/**
+	 * 获取字段值
+	 * @param entity
+	 * @param fieldName
+	 * @return
+	 */
+	private Object getFieldValue(Object entity, String fieldName) {
+		try {
+			Method getter = entity.getClass().getMethod("get" + SqlStringUtils.capitalize(fieldName));
+			return getter.invoke(entity);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	/**
@@ -279,6 +488,29 @@ public class SqlUpdateProvider extends EntityProvider implements ProviderMethodR
 		if (versionOpt.isPresent()) {
 			sql.WHERE(super.getVersionCondition(versionOpt.get(), paramPrefix));
 		}
+	}
+	
+	/**
+	 * 批量更新字段信息
+	 */
+	private static class BatchUpdateItem {
+		
+		private int index;
+		private boolean nullSetter;
+		
+		public BatchUpdateItem(int index, boolean nullSetter) {
+			this.index = index;
+			this.nullSetter = nullSetter;
+		}
+		
+		public int getIndex() {
+			return index;
+		}
+		
+		public boolean isNullSetter() {
+			return nullSetter;
+		}
+		
 	}
 	
 }

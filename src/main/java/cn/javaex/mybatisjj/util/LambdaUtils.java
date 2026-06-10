@@ -116,7 +116,7 @@ public class LambdaUtils {
 		// - 否则默认驼峰转下划线
 		Map<String, String> map = new java.util.HashMap<>();
 		for (Field f : ReflectiveUtils.getAllFields(entityClass)) {
-			if (f.isAnnotationPresent(ExcludeTableColumn.class)) {
+			if (!ReflectiveUtils.isTableField(f) || f.isAnnotationPresent(ExcludeTableColumn.class)) {
 				continue;
 			}
 			String fieldName = f.getName();

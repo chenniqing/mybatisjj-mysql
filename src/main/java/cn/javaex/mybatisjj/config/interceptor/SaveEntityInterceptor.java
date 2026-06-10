@@ -16,10 +16,15 @@ import org.apache.ibatis.plugin.Invocation;
 import org.apache.ibatis.plugin.Plugin;
 import org.apache.ibatis.plugin.Signature;
 
+import cn.javaex.mybatisjj.basic.common.DbType;
 import cn.javaex.mybatisjj.basic.common.IdTypeConstant;
+import cn.javaex.mybatisjj.config.dialect.DbDialect;
+import cn.javaex.mybatisjj.config.dialect.DbDialectRegistry;
 import cn.javaex.mybatisjj.model.entity.TableIdEntity;
 import cn.javaex.mybatisjj.provider.EntityProvider;
+import cn.javaex.mybatisjj.util.DbTypeUtils;
 import cn.javaex.mybatisjj.util.ReflectiveUtils;
+import cn.javaex.mybatisjj.util.SqlStringUtils;
 import cn.javaex.mybatisjj.util.StartupBannerUtils;
 
 /**
@@ -87,8 +92,14 @@ public class SaveEntityInterceptor extends EntityProvider implements Interceptor
 					Executor executor = (Executor) invocation.getTarget();
 					// 获取JDBC Connection
 					Connection connection = executor.getTransaction().getConnection();
-					// 执行 SELECT LAST_INSERT_ID() 来获取自动生成的主键值
-					try (PreparedStatement ps = connection.prepareStatement("SELECT LAST_INSERT_ID()")) {
+					DbType dbType = DbTypeUtils.getDbType(connection);
+					DbDialect dbDialect = DbDialectRegistry.getDialect(dbType);
+					String identitySql = dbDialect.getIdentitySql();
+					if (SqlStringUtils.isEmpty(identitySql)) {
+						return result;
+					}
+					// 根据当前数据库方言获取自动生成的主键值
+					try (PreparedStatement ps = connection.prepareStatement(identitySql)) {
 						try (ResultSet rs = ps.executeQuery()) {
 							if (rs.next()) {
 								// 获取生成的主键值

@@ -25,6 +25,15 @@ public class PageInfo<T> {
 	private boolean hasPreviousPage = false;    // 是否有前一页
 	private boolean hasNextPage = false;        // 是否有下一页
 
+	/**
+	 * 分页构造
+	 * 
+	 * 适用于：
+	 * 1. 已经使用 PageHelper.startPage() 设置了分页参数
+	 * 2. 直接查询当前页数据（不需要再查询一次总数）
+	 *
+	 * @param list 当前页数据
+	 */
 	public PageInfo(List<T> list) {
 		this.list = list;
 		
@@ -84,6 +93,52 @@ public class PageInfo<T> {
 		
 		// 清除分页参数以防影响后续操作
 		PageHelper.clearPage();
+	}
+	
+	/**
+	 * 手动分页构造
+	 * 
+	 * 适用于：
+	 * 1. 先查全量数据
+	 * 2. 再在 Java 内存中手动截取分页
+	 *
+	 * @param list 当前页数据
+	 * @param total 总条数
+	 * @param pageNum 当前页码
+	 * @param pageSize 每页大小
+	 */
+	public PageInfo(List<T> list, long total, int pageNum, int pageSize) {
+		this.list = list;
+		this.total = total;
+		this.pageNum = pageNum <= 0 ? 1 : pageNum;
+		this.pageSize = pageSize <= 0 ? 10 : pageSize;
+		this.size = list == null ? 0 : list.size();
+
+		if (this.size == 0) {
+			this.startRow = 0;
+			this.endRow = 0;
+		} else {
+			this.startRow = (this.pageNum - 1) * this.pageSize + 1;
+			this.endRow = this.startRow - 1 + this.size;
+		}
+
+		if (this.pageSize > 0) {
+			this.pages = (int) (this.total / this.pageSize + ((this.total % this.pageSize == 0) ? 0 : 1));
+		} else {
+			this.pages = 0;
+		}
+
+		if (this.pageNum > 1) {
+			this.prePage = this.pageNum - 1;
+		}
+		if (this.pageNum < this.pages) {
+			this.nextPage = this.pageNum + 1;
+		}
+
+		this.isFirstPage = this.pageNum == 1;
+		this.isLastPage = this.pageNum == this.pages || this.pages == 0;
+		this.hasPreviousPage = this.pageNum > 1;
+		this.hasNextPage = this.pageNum < this.pages;
 	}
 
 	public long getTotal() {

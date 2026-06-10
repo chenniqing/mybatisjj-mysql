@@ -118,6 +118,15 @@ public class SqlStringUtils {
     public static boolean isNotEmpty(String str) {
         return !isEmpty(str);
     }
+    
+    /**
+     * 转义 SQL 字符串字面量中的单引号，避免租户值、逻辑删除值等内部上下文破坏 SQL
+     * @param value 原始值
+     * @return 转义后的值
+     */
+    public static String escapeSqlLiteral(Object value) {
+        return value == null ? null : String.valueOf(value).replace("'", "''");
+    }
 
 	/**
 	 * 获取表名或字段名

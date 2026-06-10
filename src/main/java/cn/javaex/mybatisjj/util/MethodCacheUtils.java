@@ -16,6 +16,12 @@ public class MethodCacheUtils {
 	
 	private static final ConcurrentMap<String, Boolean> METHOD_CACHE = new ConcurrentHashMap<>();
 	
+	/**
+	 * 判断方法上是否有@NotEnablePaging注解
+	 * @param className
+	 * @param methodName
+	 * @return
+	 */
 	public static Boolean hasNotEnablePagingAnnotation(String className, String methodName) {
 		String key = className + "." + methodName;
 		return METHOD_CACHE.computeIfAbsent(key, k -> {

@@ -27,6 +27,7 @@ public class PageHelper {
 		private int pageNum;
 		private int pageSize;
 		private Long total;
+		private boolean used;
 
 		public Page(int pageNum, int pageSize) {
 			this.pageNum = pageNum;
@@ -55,6 +56,14 @@ public class PageHelper {
 
 		public void setTotal(Long total) {
 			this.total = total;
+		}
+		
+		public boolean isUsed() {
+			return used;
+		}
+		
+		public void setUsed(boolean used) {
+			this.used = used;
 		}
 
 	}

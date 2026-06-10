@@ -1,5 +1,7 @@
 package cn.javaex.mybatisjj.mapper;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.UpdateProvider;
 
@@ -22,6 +24,22 @@ public interface UpdateMapper<T> {
 	@UpdateProvider(type = SqlUpdateProvider.class, method = "updateById")
 	int updateById(T entity);
 
+	/**
+	 * 根据主键批量更新实体信息
+	 * @param list
+	 * @return
+	 */
+	@UpdateProvider(type = SqlUpdateProvider.class, method = "updateBatch")
+	int updateBatch(@Param("list") List<T> list);
+	
+	/**
+	 * 根据主键批量更新实体信息（未设置值的，更新为NULL）
+	 * @param list
+	 * @return
+	 */
+	@UpdateProvider(type = SqlUpdateProvider.class, method = "updateBatchWithNull")
+	int updateBatchWithNull(@Param("list") List<T> list);
+	
 	/**
 	 * 根据主键更新实体信息（未设置值的，更新为NULL）
 	 * @param entity

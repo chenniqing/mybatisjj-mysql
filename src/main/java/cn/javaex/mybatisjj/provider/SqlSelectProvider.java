@@ -12,6 +12,7 @@ import org.apache.ibatis.builder.annotation.ProviderContext;
 import org.apache.ibatis.builder.annotation.ProviderMethodResolver;
 import org.apache.ibatis.jdbc.SQL;
 
+import cn.javaex.mybatisjj.basic.annotation.ExcludeTableColumn;
 import cn.javaex.mybatisjj.basic.annotation.TableColumn;
 import cn.javaex.mybatisjj.basic.annotation.TableLogic;
 import cn.javaex.mybatisjj.basic.annotation.TenantId;
@@ -79,7 +80,7 @@ public class SqlSelectProvider extends EntityProvider implements ProviderMethodR
 	 * @return
 	 */
 	public String selectOneByWrapper(ProviderContext providerContext, @Param("wrapper") Wrapper<?> wrapper) {
-		return selectListByWrapper(providerContext, wrapper) + " LIMIT 1";
+		return selectListByWrapper(providerContext, wrapper);
 	}
 	
 	/**
@@ -166,6 +167,8 @@ public class SqlSelectProvider extends EntityProvider implements ProviderMethodR
 	private void validateFieldName(Class<?> entityType, String fieldName) {
 		List<Field> allFields = ReflectiveUtils.getAllFields(entityType);
 		boolean exists = allFields.stream()
+				.filter(ReflectiveUtils::isTableField)
+				.filter(field -> !field.isAnnotationPresent(ExcludeTableColumn.class))
 				.anyMatch(field -> {
 		            TableColumn tableColumnAnnotation = field.getAnnotation(TableColumn.class);
 		            String columnName = null;
@@ -216,6 +219,7 @@ public class SqlSelectProvider extends EntityProvider implements ProviderMethodR
 		// 逻辑删除处理
 		String logicDeleteCondition = "";
 		Optional<Field> logicDeleteFieldOpt = allFields.stream()
+				.filter(ReflectiveUtils::isTableField)
 				.filter(field -> field.isAnnotationPresent(TableLogic.class))
 				.findFirst();
 		if (logicDeleteFieldOpt.isPresent()) {
@@ -224,6 +228,7 @@ public class SqlSelectProvider extends EntityProvider implements ProviderMethodR
 		// 租户处理
 		String tenantCondition = "";
 		Optional<Field> tenantFieldOpt = allFields.stream()
+				.filter(ReflectiveUtils::isTableField)
 				.filter(field -> field.isAnnotationPresent(TenantId.class))
 				.findFirst();
 		if (tenantFieldOpt.isPresent()) {

@@ -46,6 +46,16 @@ public class EntityProvider {
 	private static final ConcurrentHashMap<Class<?>, Class<?>> ENTITY_TYPE_CACHE = new ConcurrentHashMap<>();
 	
 	/**
+	 * 缓存实体公共元数据，避免每次生成 SQL 都重复扫描字段注解
+	 */
+	private static final ConcurrentHashMap<Class<?>, EntityMeta> ENTITY_META_CACHE = new ConcurrentHashMap<>();
+	
+	/**
+	 * 缓存实体表结构信息，降低高频 CRUD 场景下的反射开销
+	 */
+	private static final ConcurrentHashMap<Class<?>, TableEntity> TABLE_ENTITY_CACHE = new ConcurrentHashMap<>();
+	
+	/**
 	 * 获取逻辑删除的查询条件
 	 * @param field
 	 * @return
@@ -58,7 +68,7 @@ public class EntityProvider {
 				: annotation.value();
 		String notDeletedValue = annotation.notDeletedValue();
 		
-		return logicColumnName + " = '" + notDeletedValue + "'";
+		return logicColumnName + " = '" + SqlStringUtils.escapeSqlLiteral(notDeletedValue) + "'";
 	}
 	
 	/**
@@ -68,8 +78,12 @@ public class EntityProvider {
 	 */
 	protected String getTenantCondition(Field field) {
 		String tenantColumnName = SqlStringUtils.getTableOrColumnName(field, TenantId.class);
+		String tenantId = TenantContext.getTenantId();
+		if (SqlStringUtils.isEmpty(tenantId)) {
+			throw new IllegalStateException("TenantContext tenantId cannot be empty when @TenantId is used.");
+		}
 		
-		return tenantColumnName + " = '" + TenantContext.getTenantId() + "'";
+		return tenantColumnName + " = '" + SqlStringUtils.escapeSqlLiteral(tenantId) + "'";
 	}
 	
 	/**
@@ -91,20 +105,32 @@ public class EntityProvider {
 	 */
 	protected EntityMeta extractEntityMeta(ProviderContext providerContext) {
 		Class<?> entityType = this.getEntityType(providerContext.getMapperType());
+		return ENTITY_META_CACHE.computeIfAbsent(entityType, this::buildEntityMeta);
+	}
+	
+	/**
+	 * 构建实体公共元数据，统一放入缓存复用
+	 * @param entityType 实体类型
+	 * @return 实体元数据
+	 */
+	private EntityMeta buildEntityMeta(Class<?> entityType) {
 		String tableName = this.getTableName(entityType);    // 获取表名
 		String tableId = this.getTableId(entityType);        // 获取主键字段名
 		
 		List<Field> allFields = ReflectiveUtils.getAllFields(entityType);
 		// 逻辑删除
 		Optional<Field> logicDeleteFieldOpt = allFields.stream()
+				.filter(ReflectiveUtils::isTableField)
 				.filter(field -> field.isAnnotationPresent(TableLogic.class))
 				.findFirst();
 		// 租户处理
 		Optional<Field> tenantFieldOpt = allFields.stream()
+				.filter(ReflectiveUtils::isTableField)
 				.filter(field -> field.isAnnotationPresent(TenantId.class))
 				.findFirst();
 		// 乐观锁处理
 		Optional<Field> versionOpt = allFields.stream()
+				.filter(ReflectiveUtils::isTableField)
 				.filter(field -> field.isAnnotationPresent(Version.class))
 				.findFirst();
 		return new EntityMeta(tableName, tableId, logicDeleteFieldOpt, tenantFieldOpt, versionOpt);
@@ -147,6 +173,7 @@ public class EntityProvider {
 		
 		// 2.流式查找
 		return allFields.stream()
+				.filter(ReflectiveUtils::isTableField)
 				.filter(field -> field.isAnnotationPresent(TableId.class) || "id".equals(field.getName()))	// 过滤具有TableId注解的字段或名称等于“id”的字段。
 				.findFirst()
 				.map(field -> {
@@ -184,43 +211,20 @@ public class EntityProvider {
 		// 获取当前实体类及其所有父类的属性
 		List<Field> declaredFields = ReflectiveUtils.getAllFields(entityType);
 		
-		// 第一次遍历，判断是否根据@TableColumn注解获取表字段
-		boolean hasTableColumnAnnotation = declaredFields.stream()
-		        .anyMatch(field -> field.isAnnotationPresent(TableColumn.class));
-		
-		// 根据@TableColumn注解获取表字段
-		if (hasTableColumnAnnotation) {
-			TableIdEntity tableIdEntity = this.getTableIdEntity(entityType);
-			if (tableIdEntity != null) {
-				TableColumnEntity tableIdColumnEntity = new TableColumnEntity();
-				tableIdColumnEntity.setColumn(tableIdEntity.getColumn());
-				tableIdColumnEntity.setField(tableIdEntity.getField());
-				list.add(tableIdColumnEntity);
+		// 获取实体的所有属性作为表字段，排除@ExcludeTableColumn注解的属性
+		for (Field field : declaredFields) {
+			if (!ReflectiveUtils.isTableField(field) || field.isAnnotationPresent(ExcludeTableColumn.class)) {
+				continue;
 			}
 			
-			for (Field field : declaredFields) {
-				if (field.isAnnotationPresent(TableColumn.class)) {
-					TableColumnEntity tableColumnEntity = new TableColumnEntity();
-					tableColumnEntity.setColumn(SqlStringUtils.getTableOrColumnName(field, TableColumn.class));
-					tableColumnEntity.setField(field.getName());
-					list.add(tableColumnEntity);
-				}
-			}
-		}
-		// 获取实体的所有属性作为表字段，排除@ExcludeTableColumn注解的属性
-		else {
-			for (Field field : declaredFields) {
-				if (field.isAnnotationPresent(ExcludeTableColumn.class) == false) {
-					TableColumnEntity tableColumnEntity = new TableColumnEntity();
-					tableColumnEntity.setColumn(SqlStringUtils.toUnderlineName(field.getName()));
-					tableColumnEntity.setField(field.getName());
-					list.add(tableColumnEntity);
-				}
-			}
+			TableColumnEntity tableColumnEntity = new TableColumnEntity();
+			tableColumnEntity.setColumn(SqlStringUtils.getTableOrColumnName(field, TableColumn.class));
+			tableColumnEntity.setField(field.getName());
+			list.add(tableColumnEntity);
 		}
 		
 		if (list==null || list.size()==0) {
-			throw new RuntimeException("No field marked with @TableColumn or field found.");
+			throw new RuntimeException("No table column field found.");
 		}
 		
 		return list;
@@ -232,6 +236,15 @@ public class EntityProvider {
 	 * @return
 	 */
 	protected TableEntity getTableEntity(Class<?> entityType) {
+		return TABLE_ENTITY_CACHE.computeIfAbsent(entityType, this::buildTableEntity);
+	}
+	
+	/**
+	 * 构建数据库表实体信息，供缓存初始化时调用
+	 * @param entityType 实体类型
+	 * @return 表实体信息
+	 */
+	private TableEntity buildTableEntity(Class<?> entityType) {
 		String tableName = this.getTableName(entityType);
 		TableIdEntity tableIdEntity = this.getTableIdEntity(entityType);
 		List<TableColumnEntity> tableColumnEntityList = this.getTableColumnEntitys(entityType);
@@ -315,6 +328,9 @@ public class EntityProvider {
 		List<Field> allFields = ReflectiveUtils.getAllFields(clazz);
 		// 遍历所有字段以找到具有@TableId注解的字段。
 		for (Field field : allFields) {
+			if (!ReflectiveUtils.isTableField(field)) {
+				continue;
+			}
 			field.setAccessible(true);
 			
 			// 记录当前传参中主键ID的值

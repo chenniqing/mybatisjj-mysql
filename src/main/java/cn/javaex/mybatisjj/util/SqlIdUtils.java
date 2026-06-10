@@ -77,6 +77,11 @@ public class SqlIdUtils {
                 | SEQUENCE;
     }
 
+    /**
+	 * 获取本地IP地址
+	 *
+	 * @return
+	 */
     private static String getSiteLocalIp() {
         try {
             Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
@@ -100,6 +105,12 @@ public class SqlIdUtils {
         return "127.0.0.1";
     }
 
+    /**
+	 * 等到下一个毫秒
+	 *
+	 * @param lastTimestamp
+	 * @return
+	 */
     private static long tilNextMillis(long lastTimestamp) {
         long timestamp = System.currentTimeMillis();
 

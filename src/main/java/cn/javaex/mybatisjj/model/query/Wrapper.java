@@ -1,5 +1,8 @@
 package cn.javaex.mybatisjj.model.query;
 
+import java.util.Collections;
+import java.util.Map;
+
 /**
  * 通用 Wrapper 接口
  * 
@@ -25,4 +28,11 @@ public interface Wrapper<T> {
 
 	/** 返回自定义apply片段，如果有，无时返回"" */
 	String getApplyClause();
+	/**
+	 * 获取 Wrapper 内部的参数集合，SQL 片段通过 #{wrapper.paramNameValuePairs.xxx} 进行安全绑定
+	 * @return 参数集合
+	 */
+	default Map<String, Object> getParamNameValuePairs() {
+		return Collections.emptyMap();
+	}
 }

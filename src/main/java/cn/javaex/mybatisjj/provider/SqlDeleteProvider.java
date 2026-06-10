@@ -41,7 +41,7 @@ public class SqlDeleteProvider extends EntityProvider implements ProviderMethodR
 			String logicColumnName = SqlStringUtils.isEmpty(annotation.value())
 					? SqlStringUtils.toUnderlineName(logicField.getName())
 					: annotation.value();
-			String deletedValue = annotation.deletedValue();
+			String deletedValue = SqlStringUtils.escapeSqlLiteral(annotation.deletedValue());
 			
 			return new SQL() {{
 				UPDATE(meta.tableName);
@@ -82,7 +82,7 @@ public class SqlDeleteProvider extends EntityProvider implements ProviderMethodR
 			String logicColumnName = SqlStringUtils.isEmpty(annotation.value())
 					? SqlStringUtils.toUnderlineName(logicField.getName())
 					: annotation.value();
-			String deletedValue = annotation.deletedValue();
+			String deletedValue = SqlStringUtils.escapeSqlLiteral(annotation.deletedValue());
 			
 			sql.append("UPDATE ").append(meta.tableName)
 			   .append(" SET ").append(logicColumnName).append(" = '").append(deletedValue).append("'")
@@ -117,6 +117,7 @@ public class SqlDeleteProvider extends EntityProvider implements ProviderMethodR
 		// 查找逻辑删除字段
 		List<Field> allFields = ReflectiveUtils.getAllFields(entityType);
 		Optional<Field> logicDeleteFieldOpt = allFields.stream()
+				.filter(ReflectiveUtils::isTableField)
 				.filter(field -> field.isAnnotationPresent(TableLogic.class))
 				.findFirst();
 		
@@ -127,7 +128,7 @@ public class SqlDeleteProvider extends EntityProvider implements ProviderMethodR
 			String logicColumnName = SqlStringUtils.isEmpty(annotation.value())
 					? SqlStringUtils.toUnderlineName(logicField.getName())
 					: annotation.value();
-			String deletedValue = annotation.deletedValue();
+			String deletedValue = SqlStringUtils.escapeSqlLiteral(annotation.deletedValue());
 			
 			String whereClause = this.buildWhereClause(entityType, wrapper, false, true);
 			
@@ -157,6 +158,7 @@ public class SqlDeleteProvider extends EntityProvider implements ProviderMethodR
 		String logicDeleteCondition = "";
 		if (includeLogicDelete) {
 			Optional<Field> logicDeleteFieldOpt = allFields.stream()
+					.filter(ReflectiveUtils::isTableField)
 					.filter(field -> field.isAnnotationPresent(TableLogic.class))
 					.findFirst();
 			if (logicDeleteFieldOpt.isPresent()) {
@@ -168,6 +170,7 @@ public class SqlDeleteProvider extends EntityProvider implements ProviderMethodR
 		String tenantCondition = "";
 		if (includeTenant) {
 			Optional<Field> tenantFieldOpt = allFields.stream()
+					.filter(ReflectiveUtils::isTableField)
 					.filter(field -> field.isAnnotationPresent(TenantId.class))
 					.findFirst();
 			if (tenantFieldOpt.isPresent()) {
